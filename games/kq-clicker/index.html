@@ -1,16 +1,275 @@
 <!doctype html>
 <html lang="pl">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#090812"><title>KQ CLICKER — KQ GAMES</title>
-<style>
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:#090812;color:#f7f5ff;font-family:Inter,system-ui,sans-serif}main{width:min(620px,100%);padding:36px;border:1px solid #ffffff18;border-radius:22px;background:linear-gradient(145deg,#19172a,#100f1a);text-align:center}.mark{color:#bba3ff;font-weight:900;letter-spacing:.16em;font-size:12px}h1{font-size:clamp(32px,7vw,52px);margin:18px 0 10px;letter-spacing:-.05em}p{color:#aaa5bd;line-height:1.65}a{display:inline-block;margin-top:18px;padding:12px 18px;border-radius:11px;background:#8058e9;color:white;text-decoration:none;font-size:13px;font-weight:800}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090812">
+  <title>KQ CLICKER — KQ GAMES</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090812;
+      --panel: #141222;
+      --panel2: #1b1830;
+      --line: rgba(255,255,255,.1);
+      --text: #f7f4ff;
+      --muted: #aaa3bf;
+      --purple: #9870ff;
+      --purple2: #7048e8;
+      --mint: #79efb0;
+      --gold: #ffd36a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; color: var(--text);
+      background:
+        radial-gradient(ellipse at 50% -10%, #7048e83a, transparent 36rem),
+        radial-gradient(ellipse at 95% 70%, #54d5e512, transparent 28rem), var(--bg);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button { font: inherit; }
+    .wrap { width: min(1050px, calc(100% - 28px)); margin: auto; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:20px 0; border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:11px; font-weight:950; letter-spacing:.12em; }
+    .logo { display:grid; place-items:center; width:39px; height:39px; border-radius:12px; color:#160e29; background:linear-gradient(145deg,#c1aaff,#8058ec); }
+    .brand small { display:block; color:var(--muted); font-size:9px; letter-spacing:.2em; margin-top:2px; }
+    .back { color:#c9b9ff; text-decoration:none; font-size:12px; font-weight:750; }
+    main { padding:36px 0 48px; }
+    .heading { text-align:center; margin-bottom:25px; }
+    .eyebrow { color:#c1adff; font-size:10px; letter-spacing:.2em; font-weight:900; }
+    h1 { margin:8px 0; font-size:clamp(35px,7vw,62px); letter-spacing:-.06em; }
+    h1 span { color:var(--purple); }
+    .subtitle { color:var(--muted); margin:0; font-size:14px; }
+    .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:22px 0; }
+    .stat { background:#ffffff08; border:1px solid var(--line); border-radius:15px; padding:14px 16px; text-align:center; }
+    .stat label { display:block; color:var(--muted); font-size:10px; letter-spacing:.12em; margin-bottom:5px; }
+    .stat strong { font-size:clamp(18px,3vw,27px); letter-spacing:-.04em; }
+    .game-layout { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:15px; align-items:stretch; }
+    .panel { background:linear-gradient(150deg,#19162a,#11101b); border:1px solid var(--line); border-radius:20px; padding:22px; }
+    .click-panel { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:400px; text-align:center; position:relative; overflow:hidden; }
+    .click-panel:before { content:""; position:absolute; width:270px; height:270px; border-radius:50%; background:#8e62ff1b; filter:blur(30px); pointer-events:none; }
+    .coin-label { color:var(--muted); font-size:11px; letter-spacing:.16em; font-weight:800; position:relative; }
+    .coin-total { font-size:clamp(35px,6vw,55px); font-weight:950; letter-spacing:-.06em; margin:8px 0 24px; position:relative; }
+    .coin-total span { color:var(--gold); }
+    .coin-button {
+      position:relative; width:190px; height:190px; border-radius:50%; border:7px solid #d4baff;
+      background:radial-gradient(circle at 35% 28%,#e4d5ff,#a77dff 36%,#7048e8 75%,#4928a5);
+      box-shadow:0 0 0 10px #9870ff1a,0 20px 45px #0008,inset 0 5px 12px #ffffff88,inset 0 -12px 18px #29105d88;
+      color:#21103f; cursor:pointer; font-size:68px; font-weight:1000; transition:transform .08s,filter .15s; touch-action:manipulation;
+    }
+    .coin-button:hover { filter:brightness(1.1); }
+    .coin-button:active { transform:scale(.94); }
+    .click-help { color:var(--muted); font-size:12px; margin:22px 0 0; position:relative; }
+    .click-pop { position:absolute; color:var(--mint); font-weight:950; font-size:22px; pointer-events:none; animation:floatUp .75s ease-out forwards; text-shadow:0 2px 12px #000; z-index:3; }
+    @keyframes floatUp { from{opacity:1;transform:translateY(0) scale(.8)} to{opacity:0;transform:translateY(-75px) scale(1.2)} }
+    .shop-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:15px; }
+    h2 { margin:0; font-size:22px; letter-spacing:-.04em; }
+    .shop-tag { color:#c9b9ff; font-size:9px; letter-spacing:.16em; font-weight:850; border:1px solid #9870ff55; background:#9870ff16; padding:6px 9px; border-radius:999px; }
+    .upgrade-list { display:grid; gap:10px; }
+    .upgrade {
+      display:grid; grid-template-columns:48px minmax(0,1fr) auto; align-items:center; gap:12px;
+      border:1px solid var(--line); background:#ffffff06; border-radius:14px; padding:12px;
+    }
+    .upgrade-icon { width:46px; height:46px; display:grid; place-items:center; border-radius:12px; font-size:23px; background:#9870ff20; }
+    .upgrade h3 { font-size:13px; margin:0 0 4px; }
+    .upgrade p { color:var(--muted); font-size:10px; margin:0; line-height:1.4; }
+    .level { color:#c9b9ff; font-size:9px; margin-top:4px; }
+    .buy {
+      border:1px solid #9870ff66; border-radius:10px; padding:9px 11px; min-width:88px;
+      background:linear-gradient(120deg,#7048e8,#9169f2); color:white; font-size:11px; font-weight:850; cursor:pointer;
+    }
+    .buy:disabled { opacity:.38; cursor:not-allowed; filter:grayscale(.6); }
+    .buy span { display:block; font-size:9px; opacity:.85; margin-top:2px; }
+    .bottom-row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:15px; }
+    .save-status { color:var(--muted); font-size:10px; }
+    .reset { border:1px solid var(--line); background:#ffffff08; color:#c8c2d8; padding:9px 12px; border-radius:10px; font-size:10px; font-weight:800; cursor:pointer; }
+    .reset:hover { border-color:#ff777766; color:#ffaaaa; }
+    footer { padding:20px 0 28px; border-top:1px solid var(--line); color:var(--muted); font-size:10px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+    footer strong { color:#ded4ff; letter-spacing:.12em; }
+    @media (max-width:760px) { .game-layout { grid-template-columns:1fr; } .click-panel { min-height:350px; } }
+    @media (max-width:480px) { .stats { gap:7px; } .stat { padding:12px 6px; } .upgrade { grid-template-columns:40px minmax(0,1fr); } .upgrade-icon { width:40px;height:40px; } .buy { grid-column:2; justify-self:start; } header { padding:15px 0; } }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important; transition:none!important; } }
+  </style>
 </head>
-<body><main>
-<div class="mark">KQ GAMES · BY KQ COMPANY</div>
-<h1>KQ CLICKER</h1>
-<p>To jest miejsce na Twoją grę. Zastąp zawartość tego pliku własnym kodem HTML gry. Strona główna KQ GAMES jest już przygotowana.</p>
-<a href="../../index.html">← WRÓĆ DO KQ GAMES</a>
-</main></body>
+<body>
+  <header class="wrap">
+    <a class="brand" href="../../index.html"><span class="logo">KQ</span><span>KQ GAMES<small>BY KQ COMPANY</small></span></a>
+    <a class="back" href="../../index.html">← WRÓĆ DO BIBLIOTEKI</a>
+  </header>
+
+  <main class="wrap">
+    <section class="heading">
+      <div class="eyebrow">KQ ORIGINAL · IDLE GAME</div>
+      <h1>KQ <span>CLICKER</span></h1>
+      <p class="subtitle">Klikaj, zbieraj monety i kupuj ulepszenia!</p>
+    </section>
+
+    <section class="stats" aria-label="Statystyki gry">
+      <div class="stat"><label>MONETY</label><strong id="coins">0</strong></div>
+      <div class="stat"><label>ZA KLIKNIĘCIE</label><strong id="per-click">1</strong></div>
+      <div class="stat"><label>NA SEKUNDĘ</label><strong id="per-second">0</strong></div>
+    </section>
+
+    <section class="game-layout">
+      <div class="panel click-panel" id="click-panel">
+        <div class="coin-label">TWOJE MONETY</div>
+        <div class="coin-total"><span id="big-coins">0</span> 🪙</div>
+        <button class="coin-button" id="coin-button" type="button" aria-label="Kliknij, aby zdobyć monety">K</button>
+        <p class="click-help">KLIKNIJ MONETĘ, ABY ZDOBYWAĆ MONETY</p>
+      </div>
+
+      <div class="panel">
+        <div class="shop-head"><h2>Sklep ulepszeń</h2><span class="shop-tag">POWER UP</span></div>
+        <div class="upgrade-list">
+          <article class="upgrade">
+            <div class="upgrade-icon">👆</div>
+            <div><h3>Mocniejszy klik</h3><p>Każdy klik daje więcej monet.</p><div class="level">Poziom: <b id="click-level">0</b></div></div>
+            <button class="buy" id="buy-click" type="button">KUP<span id="cost-click">25 🪙</span></button>
+          </article>
+          <article class="upgrade">
+            <div class="upgrade-icon">⚙️</div>
+            <div><h3>Auto klikacz</h3><p>Automatycznie zbiera monety co sekundę.</p><div class="level">Poziom: <b id="auto-level">0</b></div></div>
+            <button class="buy" id="buy-auto" type="button">KUP<span id="cost-auto">100 🪙</span></button>
+          </article>
+          <article class="upgrade">
+            <div class="upgrade-icon">💎</div>
+            <div><h3> Kryształowy mnożnik</h3><p>Zwiększa moc kliknięć i auto klikacza.</p><div class="level">Poziom: <b id="multi-level">0</b></div></div>
+            <button class="buy" id="buy-multi" type="button">KUP<span id="cost-multi">500 🪙</span></button>
+          </article>
+        </div>
+        <div class="bottom-row">
+          <span class="save-status" id="save-status" aria-live="polite">Postęp zapisuje się automatycznie.</span>
+          <button class="reset" id="reset" type="button">RESET GRY</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap"><span><strong>KQ CLICKER</strong> · BY KQ COMPANY</span><span>Twój postęp zapisuje się w tej przeglądarce.</span></footer>
+
+  <script>
+    (() => {
+      const SAVE_KEY = 'kq-clicker-save-v1';
+      const defaults = { coins: 0, clickLevel: 0, autoLevel: 0, multiLevel: 0 };
+      let state = { ...defaults };
+
+      const el = id => document.getElementById(id);
+      const costs = () => ({
+        click: Math.floor(25 * Math.pow(1.58, state.clickLevel)),
+        auto: Math.floor(100 * Math.pow(1.65, state.autoLevel)),
+        multi: Math.floor(500 * Math.pow(3.1, state.multiLevel))
+      });
+      const multiplier = () => Math.pow(2, state.multiLevel);
+      const clickPower = () => (1 + state.clickLevel) * multiplier();
+      const perSecond = () => state.autoLevel * multiplier();
+
+      function shortNumber(value) {
+        if (value < 1000000) return Math.floor(value).toLocaleString('pl-PL');
+        const units = ['',' mln',' mld',' bln',' bld'];
+        let n = value, i = 0;
+        while (n >= 1000 && i < units.length - 1) { n /= 1000; i++; }
+        return n.toFixed(n >= 100 ? 0 : n >= 10 ? 1 : 2).replace('.', ',') + units[i];
+      }
+
+      function save() {
+        try {
+          localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+          el('save-status').textContent = '✓ Postęp zapisany';
+        } catch (_) {
+          el('save-status').textContent = 'Zapis niedostępny w tej przeglądarce';
+        }
+      }
+
+      function load() {
+        try {
+          const raw = localStorage.getItem(SAVE_KEY);
+          if (!raw) return;
+          const parsed = JSON.parse(raw);
+          for (const key of Object.keys(defaults)) {
+            if (Number.isFinite(parsed[key]) && parsed[key] >= 0) state[key] = parsed[key];
+          }
+        } catch (_) {
+          state = { ...defaults };
+        }
+      }
+
+      function render() {
+        const cost = costs();
+        el('coins').textContent = shortNumber(state.coins);
+        el('big-coins').textContent = shortNumber(state.coins);
+        el('per-click').textContent = shortNumber(clickPower());
+        el('per-second').textContent = shortNumber(perSecond());
+        el('click-level').textContent = state.clickLevel;
+        el('auto-level').textContent = state.autoLevel;
+        el('multi-level').textContent = state.multiLevel;
+        el('cost-click').textContent = shortNumber(cost.click) + ' 🪙';
+        el('cost-auto').textContent = shortNumber(cost.auto) + ' 🪙';
+        el('cost-multi').textContent = shortNumber(cost.multi) + ' 🪙';
+        el('buy-click').disabled = state.coins < cost.click;
+        el('buy-auto').disabled = state.coins < cost.auto;
+        el('buy-multi').disabled = state.coins < cost.multi;
+      }
+
+      function popText(x, y, amount) {
+        const panel = el('click-panel');
+        const rect = panel.getBoundingClientRect();
+        const pop = document.createElement('span');
+        pop.className = 'click-pop';
+        pop.textContent = '+' + shortNumber(amount);
+        pop.style.left = Math.max(12, Math.min(rect.width - 75, x - rect.left - 12)) + 'px';
+        pop.style.top = Math.max(25, y - rect.top - 15) + 'px';
+        panel.appendChild(pop);
+        setTimeout(() => pop.remove(), 800);
+      }
+
+      el('coin-button').addEventListener('click', event => {
+        const amount = clickPower();
+        state.coins += amount;
+        popText(event.clientX, event.clientY, amount);
+        render();
+      });
+
+      function purchase(type) {
+        const cost = costs()[type];
+        if (state.coins < cost) return;
+        state.coins -= cost;
+        if (type === 'click') state.clickLevel++;
+        if (type === 'auto') state.autoLevel++;
+        if (type === 'multi') state.multiLevel++;
+        render();
+        save();
+      }
+
+      el('buy-click').addEventListener('click', () => purchase('click'));
+      el('buy-auto').addEventListener('click', () => purchase('auto'));
+      el('buy-multi').addEventListener('click', () => purchase('multi'));
+
+      el('reset').addEventListener('click', () => {
+        if (!confirm('Na pewno zresetować cały postęp w KQ CLICKER?')) return;
+        state = { ...defaults };
+        save();
+        render();
+      });
+
+      load();
+      render();
+      let last = performance.now();
+      let saveTimer = 0;
+      function loop(now) {
+        const dt = Math.min((now - last) / 1000, 1);
+        last = now;
+        const income = perSecond() * dt;
+        if (income > 0) {
+          state.coins += income;
+          render();
+          saveTimer += dt;
+          if (saveTimer >= 5) { save(); saveTimer = 0; }
+        }
+        requestAnimationFrame(loop);
+      }
+      requestAnimationFrame(loop);
+      window.addEventListener('beforeunload', save);
+    })();
+  </script>
+</body>
 </html>
