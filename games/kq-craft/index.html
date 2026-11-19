@@ -1,16 +1,150 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#090812"><title>KQ CRAFT — KQ GAMES</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KacperCraft</title>
 <style>
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:#090812;color:#f7f5ff;font-family:Inter,system-ui,sans-serif}main{width:min(620px,100%);padding:36px;border:1px solid #ffffff18;border-radius:22px;background:linear-gradient(145deg,#19172a,#100f1a);text-align:center}.mark{color:#bba3ff;font-weight:900;letter-spacing:.16em;font-size:12px}h1{font-size:clamp(32px,7vw,52px);margin:18px 0 10px;letter-spacing:-.05em}p{color:#aaa5bd;line-height:1.65}a{display:inline-block;margin-top:18px;padding:12px 18px;border-radius:11px;background:#8058e9;color:white;text-decoration:none;font-size:13px;font-weight:800}
+:root{--bg:#dfe9f3;--ui:rgba(255,255,255,.85);--tx:#1b2430;--ac:#2f9e44;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1520;--ui:rgba(20,28,40,.85);--tx:#e8eef6}}
+:root[data-theme="dark"]{--bg:#0e1520;--ui:rgba(20,28,40,.85);--tx:#e8eef6}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+canvas{display:block;width:100%;height:100%}
+#cross{position:fixed;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;pointer-events:none}
+#cross:before,#cross:after{content:"";position:absolute;background:#fff;mix-blend-mode:difference}
+#cross:before{left:8px;top:0;width:2px;height:18px}#cross:after{top:8px;left:0;height:2px;width:18px}
+#bar{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;padding:6px;background:var(--ui);border-radius:10px}
+.s{width:44px;height:44px;border-radius:6px;border:3px solid transparent;display:flex;align-items:flex-end;justify-content:flex-end;font-size:11px;padding:2px 4px;box-sizing:border-box;color:#fff;text-shadow:0 0 3px #000;cursor:pointer}
+.s.on{border-color:var(--ac);outline:2px solid var(--tx)}
+#menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);cursor:pointer}
+#menu div{background:var(--ui);padding:24px 32px;border-radius:14px;max-width:360px;text-align:center;line-height:1.5}
+#menu h1{margin:0 0 8px;font-size:28px}
+#menu small{opacity:.8}
 </style>
 </head>
-<body><main>
-<div class="mark">KQ GAMES · BY KQ COMPANY</div>
-<h1>KQ CRAFT</h1>
-<p>To jest miejsce na Twoją grę. Zastąp zawartość tego pliku własnym kodem HTML gry. Strona główna KQ GAMES jest już przygotowana.</p>
-<a href="../../index.html">← WRÓĆ DO KQ GAMES</a>
-</main></body>
+<body>
+<div id="cross"></div>
+<div id="bar"></div>
+<div id="menu"><div><h1>🧱 KacperCraft</h1>Kliknij, aby zagrać<br><small>WASD – ruch · Spacja – skok · LPM – niszcz · PPM – stawiaj<br>1–6 lub kółko myszy – wybór bloku · Esc – pauza</small></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const W=48,H=32,D=48,world=new Uint8Array(W*H*D);
+const I=(x,y,z)=>x+W*(z+D*y);
+const inb=(x,y,z)=>x>=0&&x<W&&y>=0&&y<H&&z>=0&&z<D;
+const get=(x,y,z)=>inb(x,y,z)?world[I(x,y,z)]:(y<0?3:0);
+const COL={1:[.36,.68,.25],2:[.5,.36,.22],3:[.5,.5,.52],4:[.42,.28,.15],5:[.2,.5,.2],6:[.72,.55,.32]};
+const NAMES=['','Trawa','Ziemia','Kamień','Drewno','Liście','Deski'];
+function col(id,f){if(id===1)return f===2?COL[1]:(f===3?COL[2]:[.45,.34,.2]);return COL[id]}
+// teren
+for(let x=0;x<W;x++)for(let z=0;z<D;z++){
+  const h=8+Math.floor(3*Math.sin(x*.2)+3*Math.cos(z*.15)+2*Math.sin((x+z)*.35));
+  for(let y=0;y<=h;y++)world[I(x,y,z)]=y===h?1:(y>h-3?2:3);
+}
+for(let i=0;i<30;i++){
+  const x=3+Math.floor(Math.random()*(W-6)),z=3+Math.floor(Math.random()*(D-6));
+  let y=H-1;while(y>0&&!world[I(x,y,z)])y--;
+  if(world[I(x,y,z)]!==1)continue;
+  for(let t=1;t<=4;t++)world[I(x,y+t,z)]=4;
+  for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++)for(let dy=3;dy<=5;dy++){
+    if(Math.abs(dx)+Math.abs(dz)+(dy>4?1:0)>3)continue;
+    if(!world[I(x+dx,y+dy,z+dz)])world[I(x+dx,y+dy,z+dz)]=5;
+  }
+}
+// render
+const renderer=new THREE.WebGLRenderer({antialias:true});
+document.body.prepend(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x87ceeb);scene.fog=new THREE.Fog(0x87ceeb,25,70);
+const cam=new THREE.PerspectiveCamera(75,1,.1,200);cam.rotation.order='YXZ';
+function resize(){renderer.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
+addEventListener('resize',resize);resize();
+const F=[
+ {d:[1,0,0],s:.8,f:3,v:[[1,0,1],[1,0,0],[1,1,0],[1,1,1]]},
+ {d:[-1,0,0],s:.8,f:3,v:[[0,0,0],[0,0,1],[0,1,1],[0,1,0]]},
+ {d:[0,1,0],s:1,f:2,v:[[0,1,1],[1,1,1],[1,1,0],[0,1,0]]},
+ {d:[0,-1,0],s:.5,f:4,v:[[0,0,0],[1,0,0],[1,0,1],[0,0,1]]},
+ {d:[0,0,1],s:.9,f:3,v:[[0,0,1],[1,0,1],[1,1,1],[0,1,1]]},
+ {d:[0,0,-1],s:.9,f:3,v:[[1,0,0],[0,0,0],[0,1,0],[1,1,0]]}];
+let mesh=null;
+function rebuild(){
+  const p=[],c=[];
+  for(let y=0;y<H;y++)for(let z=0;z<D;z++)for(let x=0;x<W;x++){
+    const id=world[I(x,y,z)];if(!id)continue;
+    for(const f of F){
+      if(get(x+f.d[0],y+f.d[1],z+f.d[2]))continue;
+      const k=col(id,f.f),q=f.v.map(v=>[x+v[0],y+v[1],z+v[2]]);
+      const sh=f.s*(.92+.08*((x*7+y*13+z*3)%3)/2);
+      for(const i of [0,1,2,0,2,3]){p.push(...q[i]);c.push(k[0]*sh,k[1]*sh,k[2]*sh)}
+    }
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
+  g.setAttribute('color',new THREE.Float32BufferAttribute(c,3));
+  if(mesh){scene.remove(mesh);mesh.geometry.dispose()}
+  mesh=new THREE.Mesh(g,new THREE.MeshBasicMaterial({vertexColors:true}));scene.add(mesh);
+}
+rebuild();
+const hl=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.01,1.01,1.01)),new THREE.LineBasicMaterial({color:0}));
+hl.visible=false;scene.add(hl);
+// gracz
+const P={x:W/2,y:H-1,z:D/2,vy:0,yaw:0,pitch:0,ground:false};
+{let y=H-1;while(y>0&&!world[I(W/2|0,y,D/2|0)])y--;P.y=y+1}
+const solid=(x,y,z)=>get(Math.floor(x),Math.floor(y),Math.floor(z))!==0;
+function hit(x,y,z){
+  for(const dx of [-.3,.3])for(const dz of [-.3,.3])for(const dy of [0,.9,1.79])
+    if(solid(x+dx,y+dy,z+dz))return true;
+  return false}
+// sterowanie
+const keys={};let sel=1,locked=false,drag=false;
+addEventListener('keydown',e=>{keys[e.code]=1;const n=+e.key;if(n>=1&&n<=6)pick(n)});
+addEventListener('keyup',e=>keys[e.code]=0);
+addEventListener('wheel',e=>pick(((sel-1+(e.deltaY>0?1:5))%6)+1));
+const bar=document.getElementById('bar'),menu=document.getElementById('menu');
+for(let i=1;i<=6;i++){const d=document.createElement('div');d.className='s';d.title=NAMES[i];
+  const k=col(i,2);d.style.background=`rgb(${k.map(v=>v*255|0)})`;d.textContent=i;d.onclick=()=>pick(i);bar.appendChild(d)}
+function pick(n){sel=n;[...bar.children].forEach((e,i)=>e.classList.toggle('on',i+1===n))}pick(1);
+menu.onclick=()=>{menu.style.display='none';try{renderer.domElement.requestPointerLock()}catch(e){}};
+document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===renderer.domElement;if(!locked)menu.style.display='flex'});
+addEventListener('mousemove',e=>{
+  if(!locked&&!drag)return;
+  P.yaw-=e.movementX*.0025;P.pitch=Math.max(-1.5,Math.min(1.5,P.pitch-e.movementY*.0025))});
+renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
+renderer.domElement.addEventListener('mousedown',e=>{
+  drag=true;
+  if(e.button===0)act(true);else if(e.button===2)act(false)});
+addEventListener('mouseup',()=>drag=false);
+function target(){
+  const o=cam.position,dir=new THREE.Vector3(0,0,-1).applyEuler(cam.rotation);
+  let prev=null;
+  for(let t=0;t<6;t+=.03){
+    const x=Math.floor(o.x+dir.x*t),y=Math.floor(o.y+dir.y*t),z=Math.floor(o.z+dir.z*t);
+    if(get(x,y,z)){return {hit:[x,y,z],prev}}
+    prev=[x,y,z];
+  }return null}
+function act(breaking){
+  if(!locked&&menu.style.display!=='none')return;
+  const t=target();if(!t)return;
+  if(breaking){const [x,y,z]=t.hit;if(y>0){world[I(x,y,z)]=0;rebuild()}}
+  else if(t.prev){const [x,y,z]=t.prev;if(!inb(x,y,z))return;
+    world[I(x,y,z)]=sel;
+    if(hit(P.x,P.y,P.z))world[I(x,y,z)]=0;else rebuild()}}
+// pętla
+let last=performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  const f=(keys.KeyW?1:0)-(keys.KeyS?1:0),s=(keys.KeyD?1:0)-(keys.KeyA?1:0);
+  const sp=5,sy=Math.sin(P.yaw),cy=Math.cos(P.yaw);
+  const vx=(-sy*f+cy*s)*sp*dt,vz=(-cy*f-sy*s)*sp*dt;
+  if(!hit(P.x+vx,P.y,P.z))P.x+=vx;
+  if(!hit(P.x,P.y,P.z+vz))P.z+=vz;
+  P.vy-=22*dt;if(keys.Space&&P.ground)P.vy=7.5;
+  const ny=P.y+P.vy*dt;P.ground=false;
+  if(!hit(P.x,ny,P.z))P.y=ny;else{if(P.vy<0){P.ground=true;P.y=Math.floor(P.y)}P.vy=0}
+  if(P.y<-10){P.x=W/2;P.z=D/2;P.y=H;P.vy=0}
+  cam.position.set(P.x,P.y+1.6,P.z);cam.rotation.set(P.pitch,P.yaw,0);
+  const t=target();hl.visible=!!t;if(t)hl.position.set(t.hit[0]+.5,t.hit[1]+.5,t.hit[2]+.5);
+  renderer.render(scene,cam)}
+requestAnimationFrame(loop);
+</script>
+</body>
 </html>
