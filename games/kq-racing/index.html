@@ -1,16 +1,252 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#090812"><title>KQ RACING — KQ GAMES</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zachód Rally 3D</title>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:#090812;color:#f7f5ff;font-family:Inter,system-ui,sans-serif}main{width:min(620px,100%);padding:36px;border:1px solid #ffffff18;border-radius:22px;background:linear-gradient(145deg,#19172a,#100f1a);text-align:center}.mark{color:#bba3ff;font-weight:900;letter-spacing:.16em;font-size:12px}h1{font-size:clamp(32px,7vw,52px);margin:18px 0 10px;letter-spacing:-.05em}p{color:#aaa5bd;line-height:1.65}a{display:inline-block;margin-top:18px;padding:12px 18px;border-radius:11px;background:#8058e9;color:white;text-decoration:none;font-size:13px;font-weight:800}
+  :root { --amber:#ffb347; --ink:#14101f; --paper:#fff4e6; }
+  * { box-sizing:border-box; margin:0; }
+  html, body { height:100%; overflow:hidden; background:var(--ink); font-family:'Chakra Petch', system-ui, sans-serif; color:var(--paper); }
+  canvas { display:block; }
+  #hud { position:fixed; inset:0; pointer-events:none; }
+  #speed { position:absolute; right:28px; bottom:22px; text-align:right; text-shadow:0 2px 12px rgba(0,0,0,.5); }
+  #speed b { font-size:clamp(56px,10vw,104px); font-weight:700; line-height:1; letter-spacing:-2px; }
+  #speed span { font-size:20px; margin-left:6px; opacity:.8; }
+  #bar { margin-top:6px; height:8px; width:min(300px,60vw); margin-left:auto; background:rgba(255,255,255,.18); border-radius:4px; overflow:hidden; }
+  #bar i { display:block; height:100%; width:0; background:linear-gradient(90deg,#ffd23f,#ff5a36); }
+  #times { position:absolute; left:24px; top:20px; font-size:18px; line-height:1.55; text-shadow:0 2px 10px rgba(0,0,0,.6); }
+  #times strong { font-size:34px; display:block; font-weight:700; }
+  #msg { position:absolute; left:50%; top:22%; transform:translateX(-50%); font-size:30px; font-weight:700; opacity:0; transition:opacity .4s; text-shadow:0 2px 12px rgba(0,0,0,.7); }
+  #menu { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at 50% 100%, rgba(255,122,69,.55), rgba(20,16,31,.92) 70%); z-index:5; }
+  #menu .box { max-width:460px; padding:32px; text-align:left; }
+  #menu h1 { font-size:clamp(40px,8vw,68px); line-height:.95; font-weight:700; margin-bottom:18px; }
+  #menu p { font-size:17px; line-height:1.5; margin-bottom:8px; opacity:.9; }
+  #menu button { margin-top:18px; padding:14px 34px; font:700 20px 'Chakra Petch', sans-serif; color:var(--ink); background:var(--amber); border:0; border-radius:6px; cursor:pointer; }
+  #menu button:focus-visible { outline:3px solid #fff; outline-offset:3px; }
+  kbd { background:rgba(255,255,255,.15); padding:1px 8px; border-radius:4px; font-family:inherit; }
 </style>
 </head>
-<body><main>
-<div class="mark">KQ GAMES · BY KQ COMPANY</div>
-<h1>KQ RACING</h1>
-<p>To jest miejsce na Twoją grę. Zastąp zawartość tego pliku własnym kodem HTML gry. Strona główna KQ GAMES jest już przygotowana.</p>
-<a href="../../index.html">← WRÓĆ DO KQ GAMES</a>
-</main></body>
+<body>
+<div id="hud">
+  <div id="times"><strong id="time">0:00.00</strong>Okrążenie <span id="lap">1</span><br>Najlepszy: <span id="best">–</span></div>
+  <div id="msg"></div>
+  <div id="speed"><b id="kmh">0</b><span>km/h</span><div id="bar"><i id="barfill"></i></div></div>
+</div>
+<div id="menu"><div class="box">
+  <h1>Zachód<br>Rally 3D</h1>
+  <p><kbd>W</kbd> / <kbd>↑</kbd> gaz, <kbd>S</kbd> / <kbd>↓</kbd> hamulec</p>
+  <p><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd> skręt</p>
+  <p><kbd>Spacja</kbd> hamulec ręczny (drift), <kbd>R</kbd> wróć na tor</p>
+  <p>Trzymaj się asfaltu, trawa mocno zwalnia.</p>
+  <button id="go">Start</button>
+</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+  // ---------- scena ----------
+  const renderer = new THREE.WebGLRenderer({ antialias:true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  document.body.prepend(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const horizon = 0xff9a5c;
+  scene.fog = new THREE.Fog(horizon, 90, 650);
+
+  // niebo: gradient
+  (() => {
+    const c = document.createElement('canvas'); c.width = 2; c.height = 256;
+    const g = c.getContext('2d'), gr = g.createLinearGradient(0,0,0,256);
+    gr.addColorStop(0,'#1b1038'); gr.addColorStop(.55,'#6b2a6b'); gr.addColorStop(.85,'#ff7a45'); gr.addColorStop(1,'#ff9a5c');
+    g.fillStyle = gr; g.fillRect(0,0,2,256);
+    scene.background = new THREE.CanvasTexture(c);
+  })();
+
+  const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, .1, 1500);
+  scene.add(new THREE.HemisphereLight(0xffc9a0, 0x2a2050, .85));
+  const sun = new THREE.DirectionalLight(0xffa060, .9); sun.position.set(-200,60,-300); scene.add(sun);
+
+  // ---------- trasa ----------
+  const P = [[0,-10],[120,-10],[220,40],[260,140],[200,230],[100,250],[40,190],[-40,170],[-120,210],[-220,170],[-240,70],[-170,-20],[-80,-60]];
+  const curve = new THREE.CatmullRomCurve3(P.map(p => new THREE.Vector3(p[0],0,p[1])), true, 'centripetal');
+  const N = 600, W = 17, HALF = W/2;
+  const S = [], T = [];
+  for (let i=0;i<N;i++){ S.push(curve.getPointAt(i/N)); T.push(curve.getTangentAt(i/N)); }
+  const length = curve.getLength();
+
+  // ziemia
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(4000,4000), new THREE.MeshLambertMaterial({ color:0x24402c }));
+  ground.rotation.x = -Math.PI/2; ground.position.y = -.05; scene.add(ground);
+
+  // asfalt z teksturą linii
+  const tc = document.createElement('canvas'); tc.width = 128; tc.height = 128;
+  { const g = tc.getContext('2d');
+    g.fillStyle = '#2b2b33'; g.fillRect(0,0,128,128);
+    g.fillStyle = '#f2f2f2'; g.fillRect(4,0,3,128); g.fillRect(121,0,3,128);
+    g.fillStyle = '#ffd23f'; g.fillRect(62,8,4,48); }
+  const tex = new THREE.CanvasTexture(tc); tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8;
+  const pos = [], uv = [], idx = [];
+  for (let i=0;i<=N;i++){
+    const k = i % N, p = S[k], t = T[k], nx = -t.z, nz = t.x, v = i/N * length/16;
+    pos.push(p.x+nx*HALF,.02,p.z+nz*HALF, p.x-nx*HALF,.02,p.z-nz*HALF);
+    uv.push(0,v, 1,v);
+    if (i<N){ const a=i*2; idx.push(a,a+1,a+2, a+1,a+3,a+2); }
+  }
+  const tg = new THREE.BufferGeometry();
+  tg.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  tg.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2));
+  tg.setIndex(idx); tg.computeVertexNormals();
+  scene.add(new THREE.Mesh(tg, new THREE.MeshLambertMaterial({ map:tex, side:THREE.DoubleSide })));
+
+  // krawężniki
+  const curbCount = Math.floor(N/3)*2;
+  const curbs = new THREE.InstancedMesh(new THREE.BoxGeometry(1.2,.25,3), new THREE.MeshLambertMaterial({ color:0xffffff }), curbCount);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0,1,0), one = new THREE.Vector3(1,1,1);
+  let c = 0;
+  for (let i=0;i<N;i+=3){
+    const p = S[i], t = T[i], ang = Math.atan2(t.x,t.z);
+    q.setFromAxisAngle(up, ang);
+    for (const side of [1,-1]){
+      m.compose(new THREE.Vector3(p.x-t.z*(HALF+.6)*side, .1, p.z+t.x*(HALF+.6)*side), q, one);
+      curbs.setMatrixAt(c, m);
+      curbs.setColorAt(c, new THREE.Color((i/3)%2 ? 0xe63946 : 0xffffff)); c++;
+    }
+  }
+  scene.add(curbs);
+
+  // linia startu
+  { const g = new THREE.Mesh(new THREE.PlaneGeometry(W,2.2), new THREE.MeshBasicMaterial({ color:0xffffff }));
+    g.rotation.x = -Math.PI/2; g.rotation.z = -Math.atan2(T[0].x,T[0].z)+Math.PI/2*0; g.position.copy(S[0]).setY(.05);
+    g.rotation.set(-Math.PI/2,0,0); g.rotation.order='YXZ'; g.rotation.y = Math.atan2(T[0].x,T[0].z) + Math.PI/2*0;
+    g.rotation.set(-Math.PI/2, 0, 0);
+    const holder = new THREE.Group(); holder.position.copy(S[0]).setY(.05); holder.rotation.y = Math.atan2(T[0].x,T[0].z);
+    g.position.set(0,0,0); holder.add(g); scene.add(holder); }
+
+  // drzewa
+  function distToTrack(x,z){ let d=1e9; for (let i=0;i<N;i+=2){ const dx=S[i].x-x, dz=S[i].z-z; d=Math.min(d,dx*dx+dz*dz);} return Math.sqrt(d); }
+  const trees = new THREE.InstancedMesh(new THREE.ConeGeometry(3,11,7), new THREE.MeshLambertMaterial({ color:0x163326 }), 450);
+  let tn = 0, seed = 7; const rnd = () => (seed = (seed*16807)%2147483647)/2147483647;
+  while (tn < 450){
+    const x = (rnd()-.5)*900, z = (rnd()-.4)*800 + 80;
+    if (distToTrack(x,z) < 24) continue;
+    const s = .7 + rnd()*1.1;
+    m.compose(new THREE.Vector3(x,5.5*s,z), new THREE.Quaternion(), new THREE.Vector3(s,s,s));
+    trees.setMatrixAt(tn++, m);
+  }
+  scene.add(trees);
+
+  // ---------- auto ----------
+  const car = new THREE.Group();
+  const mat = (col, em=0) => new THREE.MeshLambertMaterial({ color:col, emissive:em });
+  const add = (geo, mt, x,y,z) => { const o = new THREE.Mesh(geo, mt); o.position.set(x,y,z); car.add(o); return o; };
+  add(new THREE.BoxGeometry(2,.55,4.4), mat(0xffd23f), 0,.7,0);
+  add(new THREE.BoxGeometry(1.7,.5,2), mat(0x1a1a22), 0,1.2,-.3);
+  add(new THREE.BoxGeometry(2.1,.12,.7), mat(0x14101f), 0,1.35,-2);
+  add(new THREE.BoxGeometry(.55,.2,.1), mat(0xff2a2a,0xff1111), -.65,.85,-2.22);
+  add(new THREE.BoxGeometry(.55,.2,.1), mat(0xff2a2a,0xff1111), .65,.85,-2.22);
+  add(new THREE.BoxGeometry(.5,.18,.1), mat(0xffffff,0xffffcc), -.7,.8,2.22);
+  add(new THREE.BoxGeometry(.5,.18,.1), mat(0xffffff,0xffffcc), .7,.8,2.22);
+  const wg = new THREE.CylinderGeometry(.48,.48,.4,14), wm = mat(0x111111), wheels = [];
+  for (const [x,z] of [[-1.05,1.4],[1.05,1.4],[-1.05,-1.4],[1.05,-1.4]]){
+    const w = add(wg, wm, x,.48,z); w.rotation.z = Math.PI/2; wheels.push(w);
+  }
+  scene.add(car);
+
+  // ---------- stan gry ----------
+  const st = { x:S[0].x, z:S[0].z, a:Math.atan2(T[0].x,T[0].z), vx:0, vz:0, steer:0 };
+  let running = false, lap = 1, lapT = 0, best = null, lastIdx = 0, half = false, wheelRot = 0;
+  const keys = {};
+  addEventListener('keydown', e => { keys[e.code] = true; if (e.code==='KeyR') reset(); if (e.code.startsWith('Arrow')||e.code==='Space') e.preventDefault(); });
+  addEventListener('keyup', e => keys[e.code] = false);
+  const $ = id => document.getElementById(id);
+  const fmt = t => Math.floor(t/60) + ':' + (t%60).toFixed(2).padStart(5,'0');
+  function say(t){ const e=$('msg'); e.textContent=t; e.style.opacity=1; clearTimeout(say.h); say.h=setTimeout(()=>e.style.opacity=0,1800); }
+
+  function nearest(){ let bi=0, bd=1e12;
+    for (let i=0;i<N;i++){ const dx=S[i].x-st.x, dz=S[i].z-st.z, d=dx*dx+dz*dz; if (d<bd){bd=d;bi=i;} }
+    return [bi, Math.sqrt(bd)]; }
+  function reset(){ const [i]=nearest(); st.x=S[i].x; st.z=S[i].z; st.a=Math.atan2(T[i].x,T[i].z); st.vx=st.vz=0; }
+
+  $('go').onclick = () => { $('menu').style.display='none'; running = true; say('Jedź!'); };
+  addEventListener('keydown', e => { if (!running && (e.code==='Enter')) $('go').click(); });
+
+  // ---------- pętla ----------
+  const clock = new THREE.Clock(); const camPos = new THREE.Vector3();
+  camPos.set(st.x - Math.sin(st.a)*9, 3.6, st.z - Math.cos(st.a)*9);
+
+  function update(dt){
+    const up = keys.ArrowUp||keys.KeyW, dn = keys.ArrowDown||keys.KeyS;
+    const lf = keys.ArrowLeft||keys.KeyA, rt = keys.ArrowRight||keys.KeyD, hb = keys.Space;
+    const [ni, dist] = nearest(); const onRoad = dist < HALF + 1;
+
+    const target = (lf?1:0) - (rt?1:0);
+    st.steer += (target - st.steer) * Math.min(1, dt*8);
+
+    let f = new THREE.Vector2(Math.sin(st.a), Math.cos(st.a));
+    let s = st.vx*f.x + st.vz*f.y;
+    const maxV = onRoad ? 78 : 26;
+
+    st.a += st.steer * dt * 2.1 * Math.min(Math.abs(s)/10,1) * Math.sign(s||1) / (1 + Math.abs(s)/75) * (hb?1.5:1);
+    f.set(Math.sin(st.a), Math.cos(st.a));
+    const r = new THREE.Vector2(f.y, -f.x);
+    s = st.vx*f.x + st.vz*f.y;
+    let lat = st.vx*r.x + st.vz*r.y;
+
+    if (up) s += 42*dt*Math.max(0, 1 - s/maxV);
+    if (dn) s -= (s>0 ? 70 : 20)*dt;
+    if (!up && !dn) s -= s*.5*dt;
+    if (s > maxV) s -= (s-maxV)*Math.min(1, dt*(onRoad?.6:3));
+    if (!onRoad) s -= s*.8*dt;
+    lat *= Math.exp(-(hb ? 1.4 : 6.5) * dt);
+
+    st.vx = f.x*s + r.x*lat; st.vz = f.y*s + r.y*lat;
+    st.x += st.vx*dt; st.z += st.vz*dt;
+
+    // okrążenia
+    if (ni > N*.4 && ni < N*.6) half = true;
+    if (lastIdx > N*.9 && ni < N*.1 && half){
+      half = false;
+      if (best === null || lapT < best){ best = lapT; $('best').textContent = fmt(best); say('Nowy rekord: ' + fmt(lapT)); }
+      else say('Okrążenie: ' + fmt(lapT));
+      lap++; lapT = 0; $('lap').textContent = lap;
+    }
+    lastIdx = ni;
+    lapT += dt; $('time').textContent = fmt(lapT);
+
+    const kmh = Math.hypot(st.vx, st.vz) * 3.6 * 1.6;
+    $('kmh').textContent = Math.round(kmh);
+    $('barfill').style.width = Math.min(100, kmh/2.2) + '%';
+    wheelRot += s*dt*2; wheels.forEach(w => w.rotation.x = wheelRot);
+    return { s, lat, kmh };
+  }
+
+  function frame(){
+    requestAnimationFrame(frame);
+    const dt = Math.min(clock.getDelta(), .05);
+    let info = { s:0, lat:0, kmh:0 };
+    if (running) info = update(dt);
+
+    car.position.set(st.x, 0, st.z);
+    car.rotation.y = st.a;
+    car.rotation.z = -st.steer * Math.min(Math.abs(info.s)/60,1) * .05;
+
+    const side = Math.max(-1, Math.min(1, info.lat/20));
+    const driftAng = st.a + side * .15;
+    const want = new THREE.Vector3(st.x - Math.sin(driftAng)*9, 3.6, st.z - Math.cos(driftAng)*9);
+    camPos.lerp(want, 1 - Math.exp(-6*dt));
+    camera.position.copy(camPos);
+    camera.lookAt(st.x + Math.sin(st.a)*6, 1.2, st.z + Math.cos(st.a)*6);
+    camera.fov += ((68 + Math.min(info.kmh, 220)/220*22) - camera.fov) * Math.min(1, dt*3);
+    camera.updateProjectionMatrix();
+
+    renderer.render(scene, camera);
+  }
+  addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); });
+  frame();
+})();
+</script>
+</body>
 </html>
