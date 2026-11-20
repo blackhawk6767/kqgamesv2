@@ -1,31 +1,201 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#090812">
-  <title>KQ STRIKE — Coming Soon | KQ GAMES</title>
-  <style>
-    *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(circle at 50% 0%,#7048e855,transparent 45%),#090812;color:#fff;font-family:Inter,Arial,sans-serif;text-align:center}
-    .container{width:min(600px,100%);padding:45px 25px;border:1px solid #ffffff20;border-radius:25px;background:#171526;box-shadow:0 20px 70px #0008}
-    .logo{color:#a987ff;font-size:13px;font-weight:bold;letter-spacing:5px}
-    .icon{font-size:75px;margin:30px 0 10px}
-    h1{font-size:clamp(35px,8vw,55px);margin:10px 0;letter-spacing:-2px}
-    .coming{display:inline-block;margin:20px 0;padding:12px 23px;border:1px solid #9870ff88;border-radius:30px;background:#9870ff20;color:#c7b3ff;font-weight:bold;letter-spacing:3px}
-    p{color:#aaa4bd;line-height:1.7}
-    .back{display:inline-block;margin-top:25px;padding:13px 23px;border-radius:12px;background:linear-gradient(100deg,#7048e8,#9870ff);color:white;text-decoration:none;font-weight:bold}
-    .back:hover{filter:brightness(1.15)}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Strike Zone 3D</title>
+<style>
+:root{--ink:#f2efe6;--bg:#14161a;--accent:#e8a33d;--bad:#d9453b}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:"Trebuchet MS",Verdana,sans-serif;overflow:hidden}
+canvas{display:block;width:100%;height:100%}
+#cross{position:fixed;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;pointer-events:none}
+#cross:before,#cross:after{content:"";position:absolute;background:#7CFC9A;box-shadow:0 0 2px #000}
+#cross:before{left:10px;top:0;width:2px;height:22px}
+#cross:after{top:10px;left:0;height:2px;width:22px}
+#cross{--gap:1}
+#hud{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;padding:18px 26px;font-size:30px;font-weight:700;text-shadow:0 2px 4px #000;pointer-events:none}
+#top{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:14px 26px;font-size:18px;text-shadow:0 2px 4px #000;pointer-events:none}
+#hp{color:var(--bad)}
+#ammo{color:var(--accent)}
+#dmg{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 120px 30px rgba(217,69,59,.0);transition:box-shadow .3s}
+#menu{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(10,11,14,.82);text-align:center;padding:20px}
+#menu h1{margin:0;font-size:clamp(34px,7vw,64px);letter-spacing:.04em}
+#menu p{margin:0;max-width:520px;line-height:1.5;opacity:.85}
+button{font:inherit;font-size:20px;font-weight:700;padding:12px 34px;background:var(--accent);color:#1b1306;border:0;border-radius:4px;cursor:pointer}
+button:focus-visible{outline:3px solid #fff;outline-offset:3px}
+#hit{position:fixed;left:50%;top:50%;margin:-30px 0 0 -30px;width:60px;height:60px;border:2px solid #fff;border-radius:50%;opacity:0;pointer-events:none;transition:opacity .15s}
+</style>
 </head>
 <body>
-  <main class="container">
-    <div class="logo">KQ COMPANY PRESENTS</div>
-    <div class="icon" aria-hidden="true">🎯</div>
-    <h1>KQ STRIKE</h1>
-    <div class="coming">COMING SOON</div>
-    <p>Przygotowujemy coś wyjątkowego! Gra KQ STRIKE jest jeszcze w produkcji. Wróć wkrótce i sprawdź premierę!</p>
-    <a class="back" href="../../index.html#games">← POWRÓT DO KQ GAMES</a>
-  </main>
+<div id="cross"></div><div id="hit"></div><div id="dmg"></div>
+<div id="top"><span id="wave">Fala 1</span><span id="score">Trafienia: 0</span><span id="left">Wrogowie: 0</span></div>
+<div id="hud"><span id="hp">♥ 100</span><span id="ammo">30 / ∞</span></div>
+<div id="menu">
+  <h1 id="title">STRIKE ZONE</h1>
+  <p id="msg">Wyczyść magazyn z botów. Strzał w głowę zabija od razu.<br>WASD – ruch · Mysz – celowanie · LPM – strzał · R – przeładowanie · Shift – bieg · Spacja – skok</p>
+  <button id="play">Graj</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x8fa3b5);
+scene.fog=new THREE.Fog(0x8fa3b5,15,70);
+const cam=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,200);
+cam.rotation.order="YXZ";
+const ren=new THREE.WebGLRenderer({antialias:true});
+ren.setSize(innerWidth,innerHeight);
+document.body.prepend(ren.domElement);
+scene.add(cam);
+scene.add(new THREE.HemisphereLight(0xffffff,0x555555,0.9));
+const sun=new THREE.DirectionalLight(0xfff2d6,0.7);sun.position.set(20,40,10);scene.add(sun);
+
+// textures (canvas)
+function tex(c1,c2,s){const c=document.createElement("canvas");c.width=c.height=64;const g=c.getContext("2d");g.fillStyle=c1;g.fillRect(0,0,64,64);g.fillStyle=c2;for(let i=0;i<60;i++)g.fillRect(Math.random()*64,Math.random()*64,s,s);g.strokeStyle="rgba(0,0,0,.35)";g.strokeRect(0,0,64,64);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t}
+const floorT=tex("#b9a47c","#a58f66",3);floorT.repeat.set(30,30);
+const wallT=tex("#8a8f96","#7a7f86",4);
+const crateT=tex("#9b6a33","#835826",4);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.MeshLambertMaterial({map:floorT}));
+floor.rotation.x=-Math.PI/2;scene.add(floor);
+
+const solids=[],boxes=[];
+function addBox(x,z,w,d,h,t){
+  const tt=t.clone();tt.needsUpdate=true;tt.repeat.set(Math.max(1,w/3),Math.max(1,h/3));
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({map:tt}));
+  m.position.set(x,h/2,z);scene.add(m);solids.push(m);
+  boxes.push({x1:x-w/2,x2:x+w/2,z1:z-d/2,z2:z+d/2});
+}
+const S=30;
+addBox(0,-S,60,1,5,wallT);addBox(0,S,60,1,5,wallT);addBox(-S,0,1,60,5,wallT);addBox(S,0,1,60,5,wallT);
+[[-8,-8,6,1.5],[8,-6,1.5,8],[0,0,3,3],[-14,6,8,1.5],[14,10,1.5,8],[-6,14,3,3],[6,16,3,3],[-18,-16,3,3],[18,-18,6,1.5],[0,-18,10,1.5],[-20,18,1.5,6],[22,0,3,3],[-24,-4,3,3]].forEach(b=>addBox(b[0],b[1],b[2],b[3],b[2]>3||b[3]>3?3.5:2.2,b[2]>3||b[3]>3?wallT:crateT));
+
+// gun
+const gun=new THREE.Group();
+const gm=new THREE.MeshLambertMaterial({color:0x2b2b2e});
+const barrel=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.08,0.6),gm);barrel.position.set(0,0,-0.3);
+const grip=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.18,0.09),gm);grip.position.set(0,-0.12,-0.05);grip.rotation.x=0.3;
+const top=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.04,0.3),new THREE.MeshLambertMaterial({color:0x6b4b2a}));top.position.set(0,0.06,-0.25);
+gun.add(barrel,grip,top);gun.position.set(0.25,-0.22,-0.4);cam.add(gun);
+const flash=new THREE.PointLight(0xffc766,0,8);flash.position.set(0.25,-0.1,-1);cam.add(flash);
+const flashMesh=new THREE.Mesh(new THREE.SphereGeometry(0.07,8,8),new THREE.MeshBasicMaterial({color:0xffd27a}));flashMesh.position.set(0.25,-0.17,-0.78);flashMesh.visible=false;cam.add(flashMesh);
+
+// state
+const P={x:0,z:24,y:1.6,vy:0,hp:100,ammo:30,reload:0,yaw:0,pitch:0,kick:0,fire:0};
+let wave=0,hits=0,running=false,over=false;
+const keys={};const bots=[];
+const ac=new (window.AudioContext||window.webkitAudioContext)();
+function snd(f,d,type,v){try{const o=ac.createOscillator(),g=ac.createGain();o.type=type||"square";o.frequency.setValueAtTime(f,ac.currentTime);o.frequency.exponentialRampToValueAtTime(40,ac.currentTime+d);g.gain.setValueAtTime(v||0.12,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+d);o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d)}catch(e){}}
+
+// bots
+const skin=new THREE.MeshLambertMaterial({color:0xd2a37c});
+function makeBot(x,z){
+  const g=new THREE.Group();
+  const col=[0x3b5f8f,0x8f3b3b,0x4a6b3a][Math.floor(Math.random()*3)];
+  const body=new THREE.Mesh(new THREE.BoxGeometry(0.7,1.0,0.4),new THREE.MeshLambertMaterial({color:col}));body.position.y=1.0;
+  const legs=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.6,0.35),new THREE.MeshLambertMaterial({color:0x2a2d33}));legs.position.y=0.3;
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.22,12,12),skin);head.position.y=1.72;
+  const helm=new THREE.Mesh(new THREE.SphereGeometry(0.24,12,8,0,Math.PI*2,0,Math.PI/2),new THREE.MeshLambertMaterial({color:0x2d3a2d}));helm.position.y=1.76;
+  const arm=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,0.7),gm);arm.position.set(0.3,1.2,-0.4);
+  body.userData.bot=head.userData.bot=legs.userData.bot=arm.userData.bot=g;head.userData.head=true;
+  g.add(body,legs,head,helm,arm);g.position.set(x,0,z);scene.add(g);
+  g.userData={hp:100,cd:1+Math.random()*1.5,strafe:Math.random()<.5?1:-1,st:0,parts:[body,legs,head,arm]};
+  bots.push(g);
+}
+function blocked(x,z,r){for(const b of boxes)if(x>b.x1-r&&x<b.x2+r&&z>b.z1-r&&z<b.z2+r)return true;return false}
+function spawnWave(){
+  wave++;const n=3+wave*2;
+  for(let i=0;i<n;i++){let x,z,t=0;do{x=(Math.random()-.5)*52;z=(Math.random()-.5)*52;t++}while((blocked(x,z,1)||Math.hypot(x-P.x,z-P.z)<22)&&t<50);makeBot(x,z)}
+  $("wave").textContent="Fala "+wave;
+}
+const ray=new THREE.Raycaster();
+function los(a,b){
+  const d=new THREE.Vector3().subVectors(b,a);const L=d.length();ray.set(a,d.normalize());ray.far=L;
+  return ray.intersectObjects(solids).length===0;
+}
+
+// input
+addEventListener("keydown",e=>{keys[e.code]=true;if(e.code==="KeyR")startReload();if(e.code==="Space")e.preventDefault()});
+addEventListener("keyup",e=>keys[e.code]=false);
+addEventListener("mousemove",e=>{if(document.pointerLockElement){P.yaw-=e.movementX*0.0022;P.pitch=Math.max(-1.5,Math.min(1.5,P.pitch-e.movementY*0.0022))}});
+addEventListener("mousedown",e=>{if(document.pointerLockElement&&e.button===0)keys.Fire=true});
+addEventListener("mouseup",e=>{if(e.button===0)keys.Fire=false});
+document.addEventListener("pointerlockchange",()=>{running=!!document.pointerLockElement;if(!running&&!over){$("menu").style.display="flex";$("title").textContent="PAUZA";$("play").textContent="Wróć do gry"}else if(running)$("menu").style.display="none"});
+$("play").onclick=()=>{ac.resume();if(over)reset();ren.domElement.requestPointerLock()};
+function reset(){bots.forEach(b=>scene.remove(b));bots.length=0;Object.assign(P,{x:0,z:24,hp:100,ammo:30,reload:0,yaw:0,pitch:0});wave=0;hits=0;over=false;$("score").textContent="Trafienia: 0";spawnWave();upd()}
+function startReload(){if(P.reload<=0&&P.ammo<30){P.reload=1.4;snd(300,.2,"sawtooth",.08)}}
+function upd(){$("hp").textContent="♥ "+Math.max(0,Math.round(P.hp));$("ammo").textContent=P.reload>0?"Przeładowanie…":P.ammo+" / ∞";$("left").textContent="Wrogowie: "+bots.length}
+function hurt(d){P.hp-=d;$("dmg").style.boxShadow="inset 0 0 120px 30px rgba(217,69,59,.7)";setTimeout(()=>$("dmg").style.boxShadow="inset 0 0 120px 30px rgba(217,69,59,0)",200);snd(120,.2,"sawtooth",.15);
+  if(P.hp<=0){over=true;document.exitPointerLock();$("title").textContent="NIE ŻYJESZ";$("msg").innerHTML="Doszedłeś do fali "+wave+" i trafiłeś "+hits+" razy.";$("play").textContent="Zagraj ponownie";$("menu").style.display="flex"}}
+
+function shoot(){
+  if(P.fire>0||P.reload>0)return;
+  if(P.ammo<=0){startReload();return}
+  P.ammo--;P.fire=0.11;P.kick=1;snd(520,.12,"square",.1);
+  flash.intensity=2;flashMesh.visible=true;setTimeout(()=>{flash.intensity=0;flashMesh.visible=false},50);
+  P.pitch+=0.008;
+  ray.setFromCamera({x:(Math.random()-.5)*0.01,y:(Math.random()-.5)*0.01},cam);ray.far=100;
+  const targets=solids.slice();bots.forEach(b=>b.userData.parts.forEach(p=>targets.push(p)));
+  const h=ray.intersectObjects(targets)[0];
+  if(h&&h.object.userData.bot){
+    const b=h.object.userData.bot,hs=!!h.object.userData.head;
+    b.userData.hp-=hs?100:34;hits++;$("score").textContent="Trafienia: "+hits;
+    const m=$("hit");m.style.opacity=1;m.style.borderColor=hs?"#e8a33d":"#fff";setTimeout(()=>m.style.opacity=0,120);
+    if(b.userData.hp<=0){scene.remove(b);bots.splice(bots.indexOf(b),1);snd(200,.3,"triangle",.15)}
+  }
+  upd();
+}
+
+// loop
+let last=performance.now();
+function loop(t){
+  requestAnimationFrame(loop);
+  const dt=Math.min(0.05,(t-last)/1000);last=t;
+  if(running){
+    const sp=(keys.ShiftLeft?9:5.5)*dt;
+    let fx=(keys.KeyD?1:0)-(keys.KeyA?1:0),fz=(keys.KeyS?1:0)-(keys.KeyW?1:0);
+    const l=Math.hypot(fx,fz)||1;fx/=l;fz/=l;
+    const c=Math.cos(P.yaw),s=Math.sin(P.yaw);
+    const dx=(fx*c+fz*s)*sp,dz=(-fx*s+fz*c)*sp;
+    if(!blocked(P.x+dx,P.z,0.4))P.x+=dx;
+    if(!blocked(P.x,P.z+dz,0.4))P.z+=dz;
+    if(keys.Space&&P.y<=1.601)P.vy=6;
+    P.vy-=18*dt;P.y=Math.max(1.6,P.y+P.vy*dt);if(P.y===1.6&&P.vy<0)P.vy=0;
+    P.fire-=dt;
+    if(P.reload>0){P.reload-=dt;if(P.reload<=0){P.ammo=30;upd()}}
+    if(keys.Fire)shoot();
+    P.kick*=0.85;
+    // bots
+    const pp=new THREE.Vector3(P.x,P.y,P.z);
+    for(const b of bots){
+      const u=b.userData;const dx=P.x-b.position.x,dz=P.z-b.position.z,d=Math.hypot(dx,dz);
+      b.rotation.y=Math.atan2(-dx,-dz);
+      const eye=new THREE.Vector3(b.position.x,1.5,b.position.z);
+      const see=d<45&&los(eye,pp);
+      let mx=0,mz=0;
+      if(see){
+        if(d>10){mx=dx/d;mz=dz/d}else if(d<6){mx=-dx/d;mz=-dz/d}
+        u.st-=dt;if(u.st<=0){u.strafe*=-1;u.st=1+Math.random()*2}
+        mx+=-dz/d*u.strafe*0.7;mz+=dx/d*u.strafe*0.7;
+        u.cd-=dt;
+        if(u.cd<=0){u.cd=0.9+Math.random()*1.1-Math.min(0.5,wave*0.05);snd(300,.1,"square",0.04);if(Math.random()<Math.max(0.2,0.55-d/70))hurt(6+wave)}
+      }else{mx=dx/d;mz=dz/d}
+      const v=2.6*dt,nx=b.position.x+mx*v,nz=b.position.z+mz*v;
+      if(!blocked(nx,b.position.z,0.5))b.position.x=nx;else b.position.z+=Math.sign(mz||1)*v;
+      if(!blocked(b.position.x,nz,0.5))b.position.z=nz;else b.position.x+=Math.sign(mx||1)*v;
+    }
+    if(bots.length===0&&!over)spawnWave();
+    upd();
+  }
+  cam.position.set(P.x,P.y+Math.sin(t*0.012)*((keys.KeyW||keys.KeyS||keys.KeyA||keys.KeyD)&&P.y<=1.61?0.03:0),P.z);
+  cam.rotation.set(P.pitch+P.kick*0.02,P.yaw,0);
+  gun.position.z=-0.4+P.kick*0.06;
+  ren.render(scene,cam);
+}
+addEventListener("resize",()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight)});
+spawnWave();upd();requestAnimationFrame(loop);
+})();
+</script>
 </body>
 </html>
