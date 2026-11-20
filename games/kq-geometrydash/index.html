@@ -1,31 +1,173 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#090812">
-  <title>KQ GEOMETRYDASH — Coming Soon | KQ GAMES</title>
-  <style>
-    *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(circle at 50% 0%,#7048e855,transparent 45%),#090812;color:#fff;font-family:Inter,Arial,sans-serif;text-align:center}
-    .container{width:min(600px,100%);padding:45px 25px;border:1px solid #ffffff20;border-radius:25px;background:#171526;box-shadow:0 20px 70px #0008}
-    .logo{color:#a987ff;font-size:13px;font-weight:bold;letter-spacing:5px}
-    .icon{font-size:75px;margin:30px 0 10px}
-    h1{font-size:clamp(35px,8vw,55px);margin:10px 0;letter-spacing:-2px}
-    .coming{display:inline-block;margin:20px 0;padding:12px 23px;border:1px solid #9870ff88;border-radius:30px;background:#9870ff20;color:#c7b3ff;font-weight:bold;letter-spacing:3px}
-    p{color:#aaa4bd;line-height:1.7}
-    .back{display:inline-block;margin-top:25px;padding:13px 23px;border-radius:12px;background:linear-gradient(100deg,#7048e8,#9870ff);color:white;text-decoration:none;font-weight:bold}
-    .back:hover{filter:brightness(1.15)}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Neon Skok</title>
+<style>
+:root{--bg:#0d0b1e;--ink:#f4f1ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0d0b1e;--ink:#f4f1ff}}
+html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+canvas{display:block;width:100%;height:100%}
+</style>
 </head>
 <body>
-  <main class="container">
-    <div class="logo">KQ COMPANY PRESENTS</div>
-    <div class="icon" aria-hidden="true">🔷</div>
-    <h1>KQ GEOMETRYDASH</h1>
-    <div class="coming">COMING SOON</div>
-    <p>Przygotowujemy coś wyjątkowego! Gra KQ GEOMETRYDASH jest jeszcze w produkcji. Wróć wkrótce i sprawdź premierę!</p>
-    <a class="back" href="../../index.html#games">← POWRÓT DO KQ GAMES</a>
-  </main>
+<canvas id="c"></canvas>
+<script>
+(function(){
+const cv=document.getElementById("c"),g=cv.getContext("2d");
+let W,H,S,GY,DPR;
+function resize(){DPR=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;g.setTransform(DPR,0,0,DPR,0,0);S=Math.min(H/8.5,W/14);GY=H*0.78}
+addEventListener("resize",resize);resize();
+
+// --- level (seeded, deterministic) ---
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const R=rng(7);
+const spikes=[],blocks=[];
+const END=260;
+function sp(x,y){spikes.push({x,y:y||0})}
+function bl(x,w,h){blocks.push({x,w,h})}
+let x=16;
+while(x<END-12){
+  const d=x/END,r=R();let w=1;
+  if(r<0.22){sp(x);w=1}
+  else if(r<0.42){sp(x);sp(x+1);w=2}
+  else if(r<0.6){bl(x,2,1);sp(x+5);w=5}
+  else if(r<0.76){bl(x,4,1);sp(x+2,1);w=4}
+  else if(r<0.88&&d>0.25){bl(x,2,1);bl(x+2,2,2);w=4}
+  else {sp(x);sp(x+4);w=5}
+  x+=w+4.5+R()*(3.5-d*2);
+}
+
+// --- state ---
+const SPD=8,G=55,JV=13,HW=0.35;
+let px,y,vy,rot,onGround,state="ready",attempts=1,best=0,deadT=0,parts=[],t0=0,shake=0;
+const PSX=()=>W*0.28;
+function reset(){px=0;y=0;vy=0;rot=0;onGround=true;parts=[]}
+reset();
+
+let hold=false,actx;
+function snd(f,d,type,v){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),gn=actx.createGain();o.type=type;o.frequency.setValueAtTime(f,actx.currentTime);o.frequency.exponentialRampToValueAtTime(Math.max(30,f/3),actx.currentTime+d);gn.gain.setValueAtTime(v,actx.currentTime);gn.gain.exponentialRampToValueAtTime(0.001,actx.currentTime+d);o.connect(gn);gn.connect(actx.destination);o.start();o.stop(actx.currentTime+d)}catch(e){}}
+function press(){
+  hold=true;
+  if(state==="ready"||state==="win"){if(state==="win"){attempts=1;best=0}state="play";reset();return}
+  if(state==="dead"&&deadT>0.35){state="play";attempts++;reset()}
+}
+function release(){hold=false}
+addEventListener("keydown",e=>{if(["Space","ArrowUp","KeyW"].includes(e.code)){e.preventDefault();if(!e.repeat)press()}});
+addEventListener("keyup",e=>{if(["Space","ArrowUp","KeyW"].includes(e.code))release()});
+cv.addEventListener("pointerdown",e=>{e.preventDefault();press()});
+addEventListener("pointerup",release);
+addEventListener("pointercancel",release);
+
+function die(){
+  state="dead";deadT=0;shake=0.25;snd(180,.4,"sawtooth",.18);
+  best=Math.max(best,Math.min(100,px/END*100));
+  for(let i=0;i<26;i++){const a=Math.random()*6.28,v=2+Math.random()*6;parts.push({x:px,y:y+0.4,vx:Math.cos(a)*v,vy:Math.sin(a)*v+3,l:1})}
+}
+
+function step(dt){
+  px+=SPD*dt;
+  if(onGround&&hold){vy=JV;onGround=false;snd(520,.12,"square",.07)}
+  const prevY=y;vy-=G*dt;y+=vy*dt;onGround=false;
+  if(y<=0){y=0;vy=0;onGround=true}
+  for(const b of blocks){
+    if(px+HW>b.x&&px-HW<b.x+b.w&&y<b.h){
+      if(prevY>=b.h-0.15&&vy<=0){y=b.h;vy=0;onGround=true}
+      else{die();return}
+    }
+  }
+  for(const s of spikes){
+    if(Math.abs(s.x-px)>2)continue;
+    if(px+HW>s.x+0.35&&px-HW<s.x+0.65&&y+0.75>s.y&&y+0.05<s.y+0.45){die();return}
+  }
+  if(onGround){const q=Math.PI/2;rot=Math.round(rot/q)*q}else rot+=6.7*dt;
+  if(px>=END){state="win";best=100}
+}
+
+// --- drawing ---
+function sx(wx){return PSX()+(wx-px)*S}
+function sy(wy){return GY-wy*S}
+function draw(time){
+  const prog=Math.min(1,px/END),hue=(250+prog*140)%360;
+  const sh=shake>0?(Math.random()-.5)*shake*30:0;
+  g.save();g.translate(sh,sh);
+  const gr=g.createLinearGradient(0,0,0,H);
+  gr.addColorStop(0,`hsl(${hue},60%,16%)`);gr.addColorStop(1,`hsl(${hue+40},70%,8%)`);
+  g.fillStyle=gr;g.fillRect(-20,-20,W+40,H+40);
+  // parallax pillars
+  g.fillStyle=`hsla(${hue},70%,40%,.12)`;
+  const pw=S*2.2,off=(px*S*0.35)%(pw*2);
+  for(let i=-1;i<W/(pw*2)+2;i++){const bx=i*pw*2-off,hh=S*(2+((i+Math.floor(px*0.35/(pw*2)*1))%3+3)%3*1.6);g.fillRect(bx,GY-hh*1.8,pw,hh*1.8)}
+  // ground
+  g.fillStyle=`hsl(${hue},45%,12%)`;g.fillRect(-20,GY,W+40,H-GY+20);
+  g.strokeStyle=`hsl(${hue},100%,70%)`;g.lineWidth=3;g.shadowColor=g.strokeStyle;g.shadowBlur=12;
+  g.beginPath();g.moveTo(-20,GY);g.lineTo(W+20,GY);g.stroke();g.shadowBlur=0;
+  g.strokeStyle=`hsla(${hue},80%,60%,.25)`;g.lineWidth=1;
+  const go=(px*S)%S;for(let i=0;i<W/S+2;i++){g.beginPath();g.moveTo(i*S-go,GY);g.lineTo(i*S-go,H);g.stroke()}
+  // blocks
+  for(const b of blocks){
+    const X=sx(b.x);if(X>W+S||X+b.w*S<-S)continue;
+    g.fillStyle=`hsl(${hue},40%,18%)`;g.fillRect(X,sy(b.h),b.w*S,b.h*S);
+    g.strokeStyle=`hsl(${hue},100%,75%)`;g.lineWidth=2.5;g.strokeRect(X+1,sy(b.h)+1,b.w*S-2,b.h*S-2);
+    g.strokeStyle=`hsla(${hue},100%,75%,.3)`;g.lineWidth=1;
+    for(let i=0;i<b.w;i++)for(let j=0;j<b.h;j++)g.strokeRect(X+i*S+4,sy(b.h)+j*S+4,S-8,S-8);
+  }
+  // spikes
+  for(const s of spikes){
+    const X=sx(s.x);if(X>W+S||X<-S)continue;
+    const Y=sy(s.y);
+    g.beginPath();g.moveTo(X+2,Y);g.lineTo(X+S/2,Y-S+2);g.lineTo(X+S-2,Y);g.closePath();
+    g.fillStyle="#1a0716";g.fill();g.strokeStyle="#ff3d8b";g.lineWidth=3;g.shadowColor="#ff3d8b";g.shadowBlur=10;g.stroke();g.shadowBlur=0;
+  }
+  // finish line
+  const fx=sx(END);if(fx<W+20){g.fillStyle="#fff";g.fillRect(fx,0,6,GY)}
+  // particles
+  for(const p of parts){g.globalAlpha=Math.max(0,p.l);g.fillStyle="#7cf3ff";g.fillRect(sx(p.x)-4,sy(p.y)-4,8,8)}
+  g.globalAlpha=1;
+  // player
+  if(state!=="dead"){
+    const cx=sx(px),cy=sy(y+0.4);
+    g.save();g.translate(cx,cy);g.rotate(-rot);
+    const z=S*0.8;
+    g.shadowColor="#7cf3ff";g.shadowBlur=14;
+    g.fillStyle="#7cf3ff";g.fillRect(-z/2,-z/2,z,z);g.shadowBlur=0;
+    g.strokeStyle="#0d3b44";g.lineWidth=3;g.strokeRect(-z/2+1.5,-z/2+1.5,z-3,z-3);
+    g.fillStyle="#0d3b44";g.fillRect(-z*0.28,-z*0.2,z*0.17,z*0.22);g.fillRect(z*0.11,-z*0.2,z*0.17,z*0.22);
+    g.fillRect(-z*0.25,z*0.16,z*0.5,z*0.08);
+    g.restore();
+  }
+  g.restore();
+  // HUD
+  g.fillStyle="rgba(255,255,255,.18)";g.fillRect(W*0.2,16,W*0.6,10);
+  g.fillStyle=`hsl(${hue},100%,65%)`;g.fillRect(W*0.2,16,W*0.6*prog,10);
+  g.fillStyle="#f4f1ff";g.font="700 18px 'Trebuchet MS',Verdana,sans-serif";g.textAlign="center";
+  g.fillText(Math.floor(prog*100)+"%",W/2,48);
+  g.textAlign="left";g.font="600 15px 'Trebuchet MS',Verdana,sans-serif";
+  g.fillText("Próba "+attempts,16,28);g.textAlign="right";g.fillText("Rekord "+Math.floor(best)+"%",W-16,28);g.textAlign="center";
+  if(state==="ready"){title("NEON SKOK","Kliknij, dotknij ekranu lub naciśnij spację, aby skoczyć")}
+  if(state==="dead"&&deadT>0.35){title("Rozbity na "+Math.floor(prog*100)+"%","Kliknij lub spacja – próbujesz ponownie")}
+  if(state==="win"){title("Ukończono poziom!","Prób: "+attempts+" · Kliknij, aby zagrać od nowa")}
+}
+function title(a,b){
+  g.fillStyle="rgba(8,6,20,.55)";g.fillRect(0,H*0.22,W,H*0.2);
+  g.fillStyle="#f4f1ff";g.font=`800 ${Math.min(54,W/10)}px 'Trebuchet MS',Verdana,sans-serif`;g.fillText(a,W/2,H*0.32);
+  g.font=`500 ${Math.min(18,W/22)}px 'Trebuchet MS',Verdana,sans-serif`;g.fillStyle="#cfc8ff";g.fillText(b,W/2,H*0.38);
+}
+
+let last=performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  let dt=Math.min(0.05,(now-last)/1000);last=now;
+  if(state==="play"){const n=2;for(let i=0;i<n&&state==="play";i++)step(dt/n)}
+  if(state==="dead")deadT+=dt;
+  shake=Math.max(0,shake-dt);
+  for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy-=25*dt;p.l-=dt*1.1}
+  parts=parts.filter(p=>p.l>0);
+  draw(now);
+}
+requestAnimationFrame(loop);
+})();
+</script>
 </body>
 </html>
